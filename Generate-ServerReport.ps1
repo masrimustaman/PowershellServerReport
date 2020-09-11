@@ -16,11 +16,54 @@ $filename = "$(get-date -f yyyy-MM-dd)_$($env:COMPUTERNAME)_ServerReport.txt"
 "User : $env:USERNAME" | Out-File $filename -Append
 "" | Out-File $filename -Append
 "============================================================================"  | Out-File $filename -Append
-"Valid Server License" | Out-File $filename -Append
+"Check Valid Server License" | Out-File $filename -Append
 "----------------------------------------------------------------------------"  | Out-File $filename -Append
 # Get valid server license
-Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" | 
-where { $_.PartialProductKey } | select Description, LicenseStatus  | Out-File $filename -Append
+
+$lstat = DATA {
+
+ConvertFrom-StringData -StringData @’
+
+0 = Unlicensed
+
+1 = Licensed
+
+2 = OOB Grace
+
+3 = OOT Grace
+
+4 = Non-Genuine Grace
+
+5 = Notification
+
+6 = Extended Grace
+
+‘@
+
+}
+
+function get-licensestatus {
+
+param (
+
+[parameter(ValueFromPipeline=$true,
+
+   ValueFromPipelineByPropertyName=$true)]
+
+  [string]$computername=”$env:COMPUTERNAME”
+
+)
+
+PROCESS {
+
+ Get-WmiObject SoftwareLicensingProduct | where {$_.PartialProductKey} | select Name, @{N=”LicenseStatus”; E={$lstat[“$($_.LicenseStatus)”]} }
+
+}}
+
+get-licensestatus | ft -AutoSize  | Out-File $filename -Append
+
+
+
 "============================================================================"  | Out-File $filename -Append
 "Basic Networking" | Out-File $filename -Append
 "----------------------------------------------------------------------------"  | Out-File $filename -Append
@@ -66,7 +109,7 @@ Get-NetTCPSetting | select settingname, AutoTuningLevelLocal  | Out-File $filena
 "============================================================================"  | Out-File $filename -Append
 "VMNET3 RX Ring Buffer" | Out-File $filename -Append
 "----------------------------------------------------------------------------"  | Out-File $filename -Append
-Get-NetAdapterAdvancedProperty | where{$_.displayname -like "*rx*"}
+Get-NetAdapterAdvancedProperty | ft -AutoSize | Out-File $filename -Append
 
 
 "============================================================================"  | Out-File $filename -Append
